@@ -1,2 +1,2 @@
 # ufoNormalizer-pre-commit
-Pre-commit hook to run ufoNormalizer
+A [pre-commit](https://pre-commit.com/) hook for [ufoNormalizer](https://github.com/unified-font-object/ufoNormalizer).
