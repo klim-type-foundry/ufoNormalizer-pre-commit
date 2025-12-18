@@ -1,0 +1,10 @@
+-   id: ufonormalizer-pre-commit
+    name: ufoNormalizer
+    description: Format UFOs with ufoNormalizer.
+    entry: ufo-normalizer
+    language: python
+    types: [file]
+    files: .ufo/
+    stages: [pre-commit, pre-push, manual]
+    pass_filenames: false
+    require_serial: true
