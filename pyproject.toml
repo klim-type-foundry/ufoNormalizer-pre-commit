@@ -1,5 +1,109 @@
+[build-system]
+requires = ["setuptools>=77.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ufonormalizer-pre-commit"
+# The version is in the VERSION file (see [tool.setuptools.dynamic]), so uv.lock
+# doesn't include it and doesn't need updating when it changes. Pushing a VERSION
+# change to `main` tags the commit and creates a GitHub release (see
+# .github/workflows/release.yml)
+dynamic = ["version"]
+description = "A pre-commit hook for ufoNormalizer"
+authors = [{ name = "Klim Type Foundry" }]
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE.txt"]
+requires-python = ">=3.11"
+keywords = ["fonts", "ufo", "ufonormalizer", "pre-commit"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Text Processing :: Fonts",
+]
+# pre-commit installs the hook with the newest versions these ranges allow, so
+# keep them wide. Exact versions for development are pinned in uv.lock
+dependencies = ["ufonormalizer>=0.6.3,<1"]
+
+[project.urls]
+Source = "https://github.com/klim-type-foundry/ufoNormalizer-pre-commit"
+Issues = "https://github.com/klim-type-foundry/ufoNormalizer-pre-commit/issues"
+Changelog = "https://github.com/klim-type-foundry/ufoNormalizer-pre-commit/releases"
+
+[project.scripts]
+ufonormalizer-pre-commit = "ufonormalizer_pre_commit.cli:main"
+
+# Development tools, not installed by pre-commit. `uv sync` installs the `dev`
+# group by default
+[dependency-groups]
+dev = [
+    "mypy>=2,<3",
+    # Also for the tests, which install and run the hook with pre-commit
+    "pre-commit>=4,<5",
+    "pytest>=9,<10",
+    "pytest-cov>=7,<8",
+]
+
+[tool.setuptools.dynamic]
+version = { file = "VERSION" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv]
+required-version = ">=0.13.4"
+# Only use Python versions installed by uv, locally and in CI
+python-preference = "only-managed"
+# Reinstall this project when the VERSION file changes too, so its installed
+# version stays up to date
+cache-keys = [{ file = "pyproject.toml" }, { file = "VERSION" }]
+
 [tool.ruff]
-target-version = "py310"
+include = ["src/**/*.py", "tests/**/*.py"]
 
 [tool.ruff.lint]
-extend-select = ["I","B"] # Enable isort and flake8-bugbear
+extend-select = ["I", "B"] # Enable isort and flake8-bugbear
+
+[tool.ruff.lint.isort]
+known-first-party = ["ufonormalizer_pre_commit"]
+
+[tool.pytest.ini_options]
+addopts = ["--cov", "--cov-report=term-missing"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["ufonormalizer_pre_commit"]
+
+[tool.coverage.report]
+exclude_also = ["if __name__ == .__main__.:"]
+
+[tool.mypy]
+# No `python_version`, so mypy checks against the running interpreter, which is
+# set by `.python-version`
+files = ["src", "tests"]
+mypy_path = "src"
+explicit_package_bases = true
+check_untyped_defs = true
+disallow_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+
+# ufoNormalizer has no type information (no `py.typed`), so it's treated as `Any`
+[[tool.mypy.overrides]]
+module = ["ufonormalizer"]
+ignore_missing_imports = true
+
+# Test functions don't need annotations (their bodies are still checked)
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false

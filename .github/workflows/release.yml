@@ -1,0 +1,142 @@
+name: Ship ufoNormalizer-pre-commit release
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - VERSION
+
+# Run releases one at a time, in order, without cancelling any (only the latest
+# waiting run is kept, if several are queued)
+concurrency:
+  group: ci-ship-release-${{ github.ref }}
+  cancel-in-progress: false
+
+# Each job asks for the permissions it needs
+permissions: {}
+
+jobs:
+  check:
+    name: 'Release: check'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Set up Python & run checks
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          activate-environment: true
+          venv-path: ${{ runner.temp }}/venv
+          cache-dependency-glob: uv.lock
+      - name: Install Python dependencies
+        run: |
+          uv sync --locked --active
+      - name: Run type checks
+        run: |
+          mypy
+      - name: Run unit tests
+        run: |
+          pytest
+
+      - name: Check version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RELEASE_VERSION="$(head -1 VERSION | tr -d '[:space:]')"
+          echo "Release version number: $RELEASE_VERSION"
+          # The latest release that isn't a pre-release, if any
+          LATEST_TAG="$(gh release list --exclude-pre-releases --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // ""')"
+          if [ -z "$LATEST_TAG" ]; then
+            echo "::warning::No previous release found. Skipping version check."
+          else
+            echo "Latest GitHub release version: $LATEST_TAG"
+            # The new version must be higher than that of the latest release. Tags
+            # are the version alone (e.g. `2.0.0`), as in the `rev:` of users'
+            # pre-commit configs
+            HIGHEST_VERSION="$(printf '%s\n%s\n' "$RELEASE_VERSION" "$LATEST_TAG" | sort -V | tail -1)"
+            if [ "$RELEASE_VERSION" = "$LATEST_TAG" ] || [ "$HIGHEST_VERSION" != "$RELEASE_VERSION" ]; then
+              echo "::error::'$RELEASE_VERSION' is not higher than '$LATEST_TAG'"
+              exit 1
+            fi
+          fi
+          echo "version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+
+  # Tag the release commit and create the GitHub release, after the checks have
+  # passed. pre-commit installs the hook from the tag, so there's nothing to
+  # upload. This job can be re-run: it does nothing if the release already exists.
+  github-release:
+    name: 'Release: create GitHub release'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.check.outputs.version }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          TAG="$RELEASE_VERSION"
+
+          # Do nothing if the release already exists, so the job can be re-run
+          if IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            if [ "$IS_DRAFT" = "true" ]; then
+              echo "::error::A draft release for $TAG already exists. Delete or publish it, then re-run this job."
+              exit 1
+            fi
+            echo "Release $TAG already exists"
+            exit 0
+          fi
+
+          # If the tag was pushed by hand (see below), create the release for it,
+          # as long as it points to the commit that triggered the workflow
+          if TAG_REF="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.type + " " + .object.sha' 2>/dev/null)"; then
+            read -r TAG_TYPE TAG_SHA <<< "$TAG_REF"
+            if [ "$TAG_TYPE" = "tag" ]; then
+              TAG_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$TAG_SHA" --jq .object.sha)"
+            fi
+            if [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
+              echo "::error::Tag $TAG points to $TAG_SHA, not to $GITHUB_SHA, which triggered this release"
+              exit 1
+            fi
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TAG" \
+              --verify-tag \
+              --generate-notes
+            exit 0
+          fi
+
+          # Tag the commit that triggered the workflow, rather than the latest
+          # commit on `main`, which may already include later, unreleased changes
+          if gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TAG" \
+              --target "$GITHUB_SHA" \
+              --generate-notes; then
+            exit 0
+          fi
+
+          # GitHub doesn't let the workflow's token create a tag at a commit whose
+          # workflow files differ from the default branch's (the token can't have
+          # the `workflows` permission). That happens when a change to
+          # .github/workflows is merged after the release commit but before this
+          # job runs. Explain how to finish the release by hand.
+          CHANGED="$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...$DEFAULT_BRANCH" \
+            --jq '[.files[]?.filename | select(startswith(".github/workflows/"))] | join(", ")' || true)"
+          if [ -n "$CHANGED" ]; then
+            echo "::error::Couldn't create tag $TAG, because $DEFAULT_BRANCH has changed these workflow files since $GITHUB_SHA: $CHANGED. The workflow's token isn't allowed to tag a commit with different workflow files. See the log for how to finish the release."
+            echo "To finish the release, push the tag yourself, then re-run this job:"
+            echo "  git fetch origin && git tag $TAG $GITHUB_SHA && git push origin $TAG"
+            echo "Or create the release by hand:"
+            echo "  gh release create $TAG --repo $GITHUB_REPOSITORY --title $TAG --target $GITHUB_SHA --generate-notes"
+          fi
+          exit 1

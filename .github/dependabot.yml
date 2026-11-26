@@ -1,0 +1,32 @@
+version: 2
+# Security updates are grouped separately from version updates, so that
+# dependabot-auto-merge.yml can tell them apart by their group's name (ending in
+# "-security") and merge them automatically once the checks pass
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      github-actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      github-actions:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      python-packages-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      python-packages:
+        applies-to: version-updates
+        patterns:
+          - "*"

@@ -1,10 +1,10 @@
--   id: ufonormalizer
-    name: ufoNormalizer
-    description: Format UFOs with ufoNormalizer.
-    entry: ufo-normalizer
-    language: python
-    types: [file]
-    files: .ufo/
-    stages: [pre-commit, manual]
-    pass_filenames: false
-    require_serial: true
+- id: ufonormalizer
+  name: ufoNormalizer
+  description: Normalise UFOs with ufoNormalizer.
+  entry: ufonormalizer-pre-commit
+  language: python
+  # Any file in a UFO. The hook normalises the whole UFO each file is in
+  files: '(?i)\.ufo/'
+  # Several batches of files at once could normalise the same UFO at once
+  require_serial: true
+  stages: [ pre-commit, manual ]

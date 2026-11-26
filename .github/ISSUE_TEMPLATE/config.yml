@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/klim-type-foundry/ufoNormalizer-pre-commit/security/advisories/new
+    about: Please report security problems privately, not in a public issue.
+  - name: A problem with how ufoNormalizer formats UFOs
+    url: https://github.com/unified-font-object/ufoNormalizer/issues
+    about: The hook runs ufoNormalizer as it is, so please report problems with its formatting there.

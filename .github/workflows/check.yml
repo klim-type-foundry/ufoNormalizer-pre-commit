@@ -1,0 +1,72 @@
+name: Check pushed files
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-checks-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: 'Push: General checks'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Run pre-commit checks
+      - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
+        env:
+          # mypy needs the Python dependencies, so it runs separately below
+          SKIP: mypy
+
+      # Set up Python & run unit tests
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          activate-environment: true
+          venv-path: ${{ runner.temp }}/venv
+          cache-dependency-glob: uv.lock
+      - name: Install Python dependencies
+        run: |
+          uv sync --locked --active
+      - name: Run type checks
+        run: |
+          mypy
+      - name: Run unit tests
+        run: |
+          pytest
+
+  # Test on the oldest supported Python with the oldest dependency versions the
+  # package allows, and on the newest Python with the newest versions, as
+  # pre-commit can install it with any of them. The checks above use the versions
+  # in uv.lock
+  python-versions:
+    name: 'Push: Python ${{ matrix.python }}, ${{ matrix.resolution }} dependencies'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: '3.11'
+            resolution: lowest-direct
+          - python: '3.14'
+            resolution: highest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          python-version: ${{ matrix.python }}
+          activate-environment: true
+          venv-path: ${{ runner.temp }}/venv
+      - name: Install Python dependencies
+        run: |
+          uv pip install --resolution ${{ matrix.resolution }} --group dev .
+      - name: Run type checks
+        run: |
+          mypy
+      - name: Run unit tests
+        run: |
+          pytest
