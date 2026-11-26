@@ -1,0 +1,30 @@
+name: Auto-merge Dependabot security updates
+# Turns on auto-merge for Dependabot's security update pull requests, so they're
+# squash-merged once the required checks pass. If a check fails, the pull request
+# stays open for a maintainer to look at. Version updates are left for a
+# maintainer to review and merge. Merging doesn't release a new version: the
+# package only declares version ranges, so users get dependency fixes without one
+on: pull_request
+
+permissions: {}
+
+jobs:
+  auto-merge:
+    name: 'Dependabot: auto-merge security updates'
+    runs-on: ubuntu-latest
+    # Only for pull requests opened and updated by Dependabot itself
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Get the update's details
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+      - name: Turn on auto-merge
+        if: endsWith(steps.metadata.outputs.dependency-group, '-security')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr merge --auto --squash "$PR_URL"

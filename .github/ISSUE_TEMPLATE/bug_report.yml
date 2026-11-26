@@ -1,0 +1,38 @@
+name: Bug report
+description: The hook doesn't work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead? Include the hook's output.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce it
+      description: The command you ran (e.g. `git commit` or `pre-commit run ufonormalizer --all-files`), and the hook's entry in your `.pre-commit-config.yaml`.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Hook version
+      description: The `rev:` of the hook in your `.pre-commit-config.yaml`.
+      placeholder: e.g. 2.0.0
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Where you ran it
+      description: Your operating system, Python version and pre-commit version (`pre-commit --version`), or the CI service.
+      placeholder: e.g. macOS 15, Python 3.12, pre-commit 4.3.0
+  - type: textarea
+    id: ufos
+    attributes:
+      label: UFOs
+      description: If you can, attach a UFO (or a smaller one that shows the problem), or say if you can't share it.

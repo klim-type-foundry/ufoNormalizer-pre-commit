@@ -1,16 +1,16 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: check-added-large-files
+        args: [ '--maxkb=20480' ]
       - id: check-case-conflict
-      - id: check-executables-have-shebangs
       - id: check-illegal-windows-names
       - id: check-json
       - id: check-merge-conflict
-      - id: check-shebang-scripts-are-executable
       - id: check-symlinks
       - id: check-toml
       - id: check-vcs-permalinks
@@ -19,22 +19,36 @@ repos:
       - id: debug-statements
       - id: destroyed-symlinks
       - id: detect-private-key
-      - id: end-of-file-fixer
       - id: fix-byte-order-marker
       - id: forbid-submodules
       - id: mixed-line-ending
-      - id: requirements-txt-fixer
 
   # GitHub Actions
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.35.0
+    rev: 0.39.0
     hooks:
       - id: check-github-workflows
 
-  # Ruff linting and formatting
+  # Ruff linting and formatting (instead of Black, isort, etc.)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.9
+    rev: v0.17.6
     hooks:
       - id: ruff-check
         args: [ --fix ]
+        files: ^(src|tests)/
       - id: ruff-format
+        files: ^(src|tests)/
+
+  # mypy type checking. Runs from the project's Python environment in `.venv/`
+  # (created by `make init`), as it needs the installed dependencies. It doesn't
+  # need to be activated, so committing from a Git app works too. Skipped in
+  # `pre-commit/action` CI steps, see workflows.
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: .venv/bin/mypy
+        language: system
+        files: ^(src|tests)/
+        types: [ python ]
+        pass_filenames: false
