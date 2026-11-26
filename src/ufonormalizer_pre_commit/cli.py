@@ -74,7 +74,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog=DISTRIBUTION_NAME,
         description=(
-            "Normalise the UFOs that the given files are in with ufoNormalizer."
+            "Normalise each UFO that contains one of the given files, with ufoNormalizer."
         ),
     )
     parser.add_argument(

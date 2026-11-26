@@ -90,7 +90,7 @@ def test_normalizes_ufos(repo):
     assert ufo_files(ufo_path)["metainfo.plist"].count("\n\t") > 0
     # Without writing the normalisation times
     assert not ufo_path.joinpath("data", "org.unifiedfontobject.normalizer").exists()
-    # Only the UFOs that the given files are in
+    # Only the UFOs that contain the given files
     assert ufo_files(other_ufo_path) == ufo_files(build_ufo(repo / "Unchanged.ufo"))
 
 
